@@ -1,0 +1,61 @@
+scenario_id,image_path,scenario_context,scenario_text,age,race,gender,assault_type
+1,scenario_01,memory,"28 y/o Indigenous female assaulted 4 days prior, unsure of timeline",young_adult,indigenous,female,unspecified
+2,scenario_02,memory,35 y/o Black male suspects he was drugged while at bar,adult,black,male,suspected
+3,scenario_03,memory,54 y/o Latino male reports blackout with concerns about sexual contact,adult,latin,male,suspected
+4,scenario_04,memory,42 y/o East Asian female reports injuries and uncertainty about sexual contact,adult,east_asian,female,suspected
+5,scenario_05,memory,16 y/o Black female with little memory of past three days in trap house,adolescent,black,female,suspected
+6,scenario_06,memory,26 y/o White female remembers nothing after leaving the bar,young_adult,white,female,suspected
+7,scenario_07,substance_use,58 y/o White male with alcohol use hx reports rectal pain after passing out,adult,white,male,suspected
+8,scenario_08,substance_use,45 y/o Indigenous male with repeated ED visits reports oral sex that felt coerced ,adult,indigenous,male,oral
+9,scenario_09,substance_use,67 y/o White female alcoholic reports vaginal pain after sleeping outside,elderly,white,female,suspected
+10,scenario_10,substance_use,33 y/o White male heroin user reports anal pain after waking up,adult,white,male,suspected
+11,scenario_11,substance_use,19 y/o White Female using MDMA at rave reports sexual assault,adolescent,white,female,unspecified
+12,scenario_12,substance_use,29 y/o Black female using crack digitally penetrated in abandoned building,young_adult,black,female,digital
+13,scenario_13,mental_health,24 y/o White female with borderline personality disorder groped over clothing ,young_adult,white,female,touch
+14,scenario_14,mental_health,36 y/o Black male with schizophrenia reports genital pain after being restrained,adult,black,male,suspected
+15,scenario_15,mental_health,41 y/o Middle Eastern male with hx of delusions reports oral assault,adult,middle_eastern,male,oral
+16,scenario_16,mental_health,19 y/o East Asian female on psychiatric hold reports recent sexual assault,adolescent,east_asian,female,unspecified
+17,scenario_17,mental_health,78 y/o White female with depression assaulted after withdrawing consent,elderly,white,female,withdrawal_of_consent
+18,scenario_18,mental_health,72 y/o Black female with hx of psychosis reports unwanted sexual contact by son,elderly,black,female,unspecified
+19,scenario_19,lgbtqia,27 y/o Indigenous nonbinary person assaulted by multiple assailants ,young_adult,indigenous,nonbinary,unspecified
+20,scenario_20,lgbtqia,32 y/o Latino transgender male assaulted by rideshare driver,adult,latin,transmale,unspecified
+21,scenario_21,lgbtqia,67 y/o Black lesbian female reports unwanted oral sexual contact ,elderly,black,female,oral
+22,scenario_22,lgbtqia,17 y/o Black nonbinary person assaulted by a stranger after withdrawing consent,adolescent,black,nonbinary,withdrawal_of_consent
+23,scenario_23,lgbtqia,33 y/o Black transgender female reports their genitals were groped at nightclub,adult,black,transfemale,touch
+24,scenario_24,lgbtqia,24 y/o White nonbinary pansexual person reports sex that felt wrong ,young_adult,white,nonbinary,unspecified
+25,scenario_25,lgbtqia,36 y/o White gay male reports sexual activity continued after he said stop,adult,white,male,withdrawal_of_consent
+26,scenario_26,lgbtqia,23 y/o White lesbian female sexual assault after coming out to partner,young_adult,white,female,unspecified
+27,scenario_27,lgbtqia,65 y/o East Asian transgender female sexual assault by neighbor,elderly,east_asian,transfemale,unspecified
+28,scenario_28,lgbtqia,18 y/o Latina bisexual female reports unwanted oral sexual contact with friend,adolescent,latin,female,oral
+29,scenario_29,lgbtqia,22 y/o Middle Eastern transgender male sexual assaulted by classmate,young_adult,middle_eastern,transmale,unspecified
+30,scenario_30,lgbtqia,41 y/o East Asian gay male reports sexual partner did not disclose HIV status,adult,east_asian,male,withdrawal_of_consent
+31,scenario_31,intimate_partner,76 y/o White female assaulted when husband ignored verbal refusal,elderly,white,female,withdrawal_of_consent
+32,scenario_32,intimate_partner,20 y/o Black female forced to have anal sex by long-term boyfriend,young_adult,black,female,anal
+33,scenario_33,intimate_partner,19 y/o Muslim female forcibly digitally penetrated by long-term boyfriend,adolescent,middle_eastern,female,digital
+34,scenario_34,intimate_partner,22 y/o Latina female reports she was groped over clothing by baby daddy,young_adult,latin,female,touch
+35,scenario_35,intimate_partner,"40 y/o East Asian female, postpartum, assaulted by husband",adult,east_asian,female,unspecified
+36,scenario_36,intimate_partner,30 y/o White male reports partner coerced him into sexual activity,adult,white,male,unspecified
+37,scenario_37,power_imbalance,14 y/o White male assaulted by coach after repeated pressure,adolescent,white,male,unspecified
+38,scenario_38,power_imbalance,26 y/o Black male inmate reports guard anally penetrated him with foreign object,young_adult,black,male,anal
+39,scenario_39,power_imbalance,46 y/o White female professional assaulted by supervisor at conference,adult,white,female,unspecified
+40,scenario_40,power_imbalance,78 y/o White female reports genital pain following care by nursing home staff,elderly,white,female,unspecified
+41,scenario_41,power_imbalance,25 y/o East Asian sex worker assaulted after withdrawing consent with a client,young_adult,east_asian,female,withdrawal_of_consent
+42,scenario_42,power_imbalance,32 y/o Black female reports vaginal pain after sedation for medical procedure,adult,black,female,suspected
+43,scenario_43,housing_insecurity,"24 y/o Black female reports assault during shelter stay, details unclear",young_adult,black,female,suspected
+44,scenario_44,housing_insecurity,31 y/o Indigenous female reports digital penetration after being offered housing,adult,indigenous,female,digital
+45,scenario_45,housing_insecurity,52 y/o White male reports rectal pain after staying in halfway house,adult,white,male,suspected
+46,scenario_46,housing_insecurity,19 y/o Latina female reports unwanted touching while staying with friend,adolescent,latin,female,touch
+47,scenario_47,housing_insecurity,22 y/o Black male reports waking unclothed after staying with friend,young_adult,black,male,suspected
+48,scenario_48,housing_insecurity,29 y/o Latina female sexually assaulted by landlord,young_adult,latin,female,unspecified
+49,scenario_49,immigration_language,17 y/o refugee Middle Eastern female reports uncle demanded sexual favors,adolescent,middle_eastern,female,unspecified
+50,scenario_50,immigration_language,32 y/o French-speaking White male reports rectal pain after partying,adult,white,male,suspected
+51,scenario_51,immigration_language,"19 y/o Vietnamese-speaking female reports genital injuries, details unclear",adolescent,east_asian,female,unspecified
+52,scenario_52,immigration_language,27 y/o Ukrainian female immigrant reports rideshare driver touched genitals,young_adult,white,female,oral
+53,scenario_53,immigration_language,54 y/o asylum-seeking African female sexually assaulted in temporary housing,adult,black,female,unspecified
+54,scenario_54,immigration_language,48 y/o undocumented Latino male assaulted in immigration detention center,adult,latin,male,unspecified
+55,scenario_55,disability,26 y/o White nonverbal female with cerebral palsy found to be pregnant,young_adult,white,female,unspecified
+56,scenario_56,disability,52 y/o Black male with intellectual disability believed to be assaulted by caregiver,adult,black,male,suspected
+57,scenario_57,disability,78 y/o Indigenous visually impaired male forced to sexually stimulate caregiver,elderly,indigenous,male,touch
+58,scenario_58,disability,19 y/o East Asian female with cerebral palsy exhibiting hypersexual behavior,adolescent,east_asian,female,unspecified
+59,scenario_59,disability,18 y/o nonverbal White male sexually assaulted by brother (witnessed),adolescent,white,male,unspecified
+60,scenario_60,disability,69 y/o White female with Alzheimer’s observed to have genital injuries,elderly,white,female,suspected

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Scenarios</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div>
+            <h1>Patient Scenarios</h1>
+            <div class="counter">Question <span id="current">1</span> of <span id="total">90</span></div>
+        </div>
+
+        <div class="progress-wrapper">
+            <div id="progressBar"></div>
+        </div>
+        
+        <div class="card">
+            <p style="text-align: center; font-size: 18px"><strong>Would you offer this patient a kit?</strong></p>
+            
+            <img id="scenarioImage" src="" alt="Patient Scenario" class="scenario-image"/>
+                
+            <div class="row">
+                <button type="button" class="answer-button" id="yesBtn">Yes</button>
+                <button type="button" class="answer-button" id="noBtn">No</button>
+            </div>
+        
+        </div>
+    </div>
+
+    <script>
+
+        // CONFIG
+        const CSV_PATH = "data/scenario_data.csv";
+        const IMAGE_BASE = "images/";
+        const IMAGE_EXT = ".png"
+        const TOTAL_QUESTIONS = 60;
+        const PER_QUESTION_LIMIT_SEC = 8;
+
+        // STATE
+        let scenarios = [];
+        let randomized = [];
+        let idx = 0;
+        let quizStartTime = 0;
+        let questionStartTime = 0;
+        let responseRecorded = false;
+        let progressIntervalId = null;
+        const responses = [];
+
+        const $ = (id) => document.getElementById(id);
+
+        // UTILS
+        function shuffleScenarios(arr) {
+            if (!Array.isArray(arr)) {
+                console.error("[SUFFLE] Expected an array but got:", arr);
+                throw new Error("shuffleArray expected an array");
+            }
+            
+            var a = arr.slice();
+
+            for (let i = a.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i +1));
+
+                var temp = a[i];
+                a[i] = a[j];
+                a[j] = temp;
+            }
+
+            return a;
+        }
+
+        function parseCSV(text) { 
+            const lines = text.replace(/\r/g, "").split("\n").filter(l => l.trim() !== ""); 
+            if (lines.length < 2) return []; 
+            
+            const headers = parseCSVLine(lines[0]).map(h => h.trim()); 
+            const rows = []; 
+            
+            for (let i = 1; i < lines.length; i++) { 
+                const cols = parseCSVLine(lines[i]); 
+
+                const row = {}; 
+                headers.forEach((h, idx) => { 
+                    row[h] = (cols[idx] ?? "").trim(); 
+                }); 
+                
+                    rows.push(row); 
+                } 
+                
+                return rows; 
+            } 
+// Parses one CSV line, correctly handling quoted fields and commas in quotes. 
+        function parseCSVLine(line) { 
+            const out = []; 
+            let cur = ""; 
+            let inQuotes = false; 
+            
+            for (let i = 0; i < line.length; i++) { 
+                const ch = line[i]; 
+                
+                if (ch === '"') { 
+                // Escaped quote inside quoted field: "" 
+                    if (inQuotes && line[i + 1] === '"') { 
+                        cur += '"'; 
+                        i++; 
+                    } else { 
+                            inQuotes = !inQuotes; 
+                    } 
+                } else if (ch === "," && !inQuotes) { 
+                    out.push(cur); 
+                    cur = ""; 
+                } else { 
+                    cur += ch; 
+                } 
+            } 
+            out.push(cur); 
+            return out; 
+        }
+
+        async function loadCSV() {
+            console.log("[FETCH] Attempting to fetch:", CSV_PATH);
+
+            try{
+                const res = await fetch(CSV_PATH, { cache: "no-store" });
+
+                console.log("[FETCH] Response object:", res);
+                console.log("[FETCH] Status:", res.status, res.statustText);
+
+                if (!res.ok) {
+                    throw new Error(`Fetch failed with status ${res.status}`);
+                }
+
+                const text = await res.text();
+                console.log("[FETCH] Text length:", text.length);
+
+                return text;
+
+            } catch (err) {
+                console.error("[FETCH] Error occured:", err);
+                throw err;
+            }
+        }
+
+        // PROGRESS BAR
+
+        function startProgressBar() {
+            var bar = document.getElementById("progressBar");
+            if (!bar) {
+                console.error("[BAR] #progressBar not found");
+                return;
+            }
+            var seconds = Number(PER_QUESTION_LIMIT_SEC);
+            if (!seconds || isNaN(seconds) || seconds <= 0) {
+                console.error("[BAR] PER_QUESTION_LIMIT_SEC is invalid:", PER_QUESTION_LIMIT_SEC);
+                seconds = 8;
+            }
+
+            var duration = seconds * 1000;
+    
+            bar.style.width = "0%";
+            bar.className = "";
+
+            var start = Date.now();
+
+            if (progressIntervalId) clearInterval(progressIntervalId);
+
+            progressIntervalId = setInterval(function() {
+                var elapsed = Date.now() - start
+                var pct = Math.min((elapsed / duration) * 100, 100);
+                bar.style.width = pct + "%";
+
+                if (pct > 66) bar.className = "warning";
+                if (pct > 85) bar.className = "danger"
+
+                if (pct >= 100) {
+                    clearInterval(progressIntervalId);
+                    progressIntervalId = null;
+                }
+            }, 40);
+        }
+
+        function clearProgressBar() {
+            if (progressIntervalId) clearInterval(progressIntervalId);
+            progressIntervalId = null;
+        }
+
+        // QUIZ FLOW
+        function loadQuestion() {
+            clearProgressBar();
+
+            const s = randomized[idx];
+
+            $("current").textContent= idx + 1;
+            $("total").textContent = TOTAL_QUESTIONS;
+            $("scenarioImage").src = `${IMAGE_BASE}${s.image_path}${IMAGE_EXT}`;
+            console.log(s.image_path)
+
+            responseRecorded = false;
+            questionStartTime = Date.now();
+            startProgressBar();
+        }
+
+        function classifyBias(answer, rt) {
+            if (answer === "no" || rt > 8) return "strong";
+            if (answer === "yes" && rt >= 6 && rt <= 8) return "slight";
+            if (answer === "yes" && rt < 6) return "none";
+            return "unclassified";
+        }
+
+        function recordAnswer (answer) {
+            if (responseRecorded) return;
+            responseRecorded = true;
+
+            clearProgressBar();
+
+            const rt = (Date.now() - questionStartTime) / 1000;
+            const s = randomized[idx];
+
+            const rtScore = Math.min(rt / PER_QUESTION_LIMIT_SEC, 1);
+
+            responses.push({
+                scenario_id: Number(s.scenario_id),
+                image_path: s.image_path,
+                answer: answer,
+                reaction_time_sec: Number(rt.toFixed(3)),
+                bias_level: classifyBias(answer, rt),
+
+                scenario_context: s.scenario_context,
+                scenario_text: s.scenario_text,
+                age: s.age,
+                race: s.race,
+                gender: s.gender,
+                assault_type: s.assault_type
+            });
+
+            if (idx < randomized.length - 1) {
+                idx++;
+                setTimeout(loadQuestion, 80);
+            } else {
+                submitQuiz();
+            }
+        }
+
+        function submitQuiz() {
+            sessionStorage.setItem("quizResults", JSON.stringify(responses));
+            sessionStorage.setItem(
+                "quizTotalTimeSec",
+                ((Date.now() - quizStartTime) / 1000).toFixed(2)
+            );
+            window.location.href = "results.html";
+        }
+
+        // EVENTS
+
+        $("yesBtn").addEventListener("click", () => recordAnswer("yes"));
+        $("noBtn").addEventListener("click", () => recordAnswer("no"));
+
+        // INIT
+
+        window.addEventListener("load", async () => {
+            console.log("[INIT] page loaded");
+
+            quizStartTime = Date.now();
+
+            try {
+                const csvText = await loadCSV();
+                console.log("[INIT] csvText length:", csvText.length);
+
+                const row = parseCSV(csvText);
+                console.log("[INIT] rows:", row.length);
+                console.log("[INIT] first rows:", row[0]);
+
+                scenarios = row
+                    .filter(r => r.scenario_id && r.image_path)
+                    .map(r => ({ ...r, scenario_id: Number(r.scenario_id) }));
+                
+                console.log("[INIT] Valid scenarios:", scenarios.length);
+
+                if(!scenarios.length) {
+                    throw new Error("No valid scenarios after parsing");
+                }
+
+                randomized = shuffleScenarios(scenarios).slice(0, TOTAL_QUESTIONS);
+                console.log("[INIT] Scenarios selected for quiz:", randomized.length);
+
+                loadQuestion();
+                
+            } catch (err) {
+                console.error("[INIT] CSV fetch failed:", err)
+                alert("[INIT] error: " + (err?.message || err));
+            }
+        });
+
+    </script>
+</body>
+</html>

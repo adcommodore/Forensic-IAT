@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css"/>
+    <title>SANE Fall Workshop Quiz</title>
+</head>
+<body>
+    <div class="container">
+        <div style="padding-bottom: 20px" >
+            <h1>It's Time For A Quiz!</h1>
+        </div>
+
+        
+        <div style="padding-left: 30px; padding-right: 30px;">
+            <p>
+                Welcome! Before we get started with the workshop, we ask that you take this 10 minute quiz.
+            </p>
+            <p>
+                Please enter your email address below to get started. After the workshop, your results
+                will be sent directly to your email inbox so you can review them.
+            </p>
+            <form id="emailForm">
+                <label for="email"><strong>Email address</strong></label>
+                <input type="email" id="emailInput" placeholder="your.name@mass.gov" required/>
+                <div style="display:flex; justify-content: end">
+                    <button type="submit">Next</button>
+                </div>
+            </form>
+            
+        </div>
+    
+        
+        
+    </div>
+
+    <script>
+
+        document.getElementById("emailForm").addEventListener("submit", (e) => {
+            e.preventDefault();
+            const email = document.getElementById("emailInput").value.trim();
+            sessionStorage.setItem("quizEmail", email);
+            window.location.href = "instructions.html";
+        })
+    </script>
+</body>
+</html>
