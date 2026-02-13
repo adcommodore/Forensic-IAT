@@ -178,7 +178,7 @@
                     clearInterval(progressIntervalId);
                     progressIntervalId = null;
                 }
-            }, 10);
+            }, 1);
         }
 
         function clearProgressBar() {
@@ -237,7 +237,7 @@
 
             if (idx < randomized.length - 1) {
                 idx++;
-                setTimeout(loadQuestion, 10);
+                setTimeout(loadQuestion, 1);
             } else {
                 submitQuiz();
             }
