@@ -7,7 +7,8 @@
 
 <link rel="stylesheet" href="styles.css">
 
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<!-- SMTP.js -->
+<script src="https://smtpjs.com/v3/smtp.js"></script>
 </head>
 
 <body>
@@ -15,18 +16,16 @@
 <div class="container">
     <h1>Thank You for Participating!</h1>
     <p>We appreciate you taking the time to complete the quiz.</p>
-    <p>Your results are being processed and will be emailed to you shortly.</p>
+    <p>Your results are being processed and will be emailed shortly.</p>
 
     <p id="emailStatus"></p>
 </div>
 
 <script>
+
 /* ================= CONFIG ================= */
 
-const EMAILJS_PUBLIC_KEY = "htplD2J6SNIDYdyuK";
-const EMAILJS_SERVICE_ID = "service_dbk0h6l";
-const EMAILJS_TEMPLATE_ID = "template_qi850zs";
-
+const SMTP_SECURE_TOKEN = "gkmk wdni nkpm mgul";
 const ADMIN_EMAIL = "alexis.d.commodore@mass.gov";
 const DELAY_MS = 24 * 60 * 60 * 1000;
 
@@ -108,33 +107,53 @@ function averageReactionTime(results) {
     return (sum / results.length).toFixed(2);
 }
 
+/* ================= EMAIL BODY ================= */
+
+function buildEmailBody(results, totalTimeSec) {
+    const bias = summarizeBias(results);
+    const avgRT = averageReactionTime(results);
+
+    return `
+Hello,
+
+Thank you for completing the Patient Scenarios quiz.
+
+Overall Participation Summary:
+Total scenarios: ${results.length}
+Average response time: ${avgRT} seconds
+Total quiz time: ${totalTimeSec} seconds
+
+Bias Classification Overview:
+No Bias Detected: ${bias.none_count}
+Slight Bias Indicators: ${bias.slight_count}
+Strong Bias Indicators: ${bias.strong_count}
+
+Bias observed in categories:
+Age groups: ${bias.bias_by_age_summary}
+Race/Ethnicity: ${bias.bias_by_race_summary}
+Gender: ${bias.bias_by_gender_summary}
+Scenario context: ${bias.bias_by_context_summary}
+Assault type: ${bias.bias_by_assault_type_summary}
+
+These results are intended to support reflection and continued growth in equitable, trauma-informed care.
+
+Thank you again for your participation.
+
+Best regards,
+Program Team
+`;
+}
+
 /* ================= EMAIL SEND ================= */
 
-async function sendResultsEmail({
-    toEmail,
-    csvText,
-    totalTimeSec,
-    label
-}) {
-    const parsedResults =
-        JSON.parse(sessionStorage.getItem("quizResults") || "[]");
-
-    const biasSummary = summarizeBias(parsedResults);
-    const avgRT = averageReactionTime(parsedResults);
-
-    return emailjs.send(
-        EMAILJS_SERVICE_ID,
-        EMAILJS_TEMPLATE_ID,
-        {
-            to_email: toEmail,
-            send_type: label,
-            total_questions: parsedResults.length,
-            total_quiz_time: totalTimeSec,
-            average_response_time: avgRT,
-            results_csv: csvText,
-            ...biasSummary
-        }
-    );
+async function sendEmail(to, subject, body) {
+    return Email.send({
+        SecureToken: SMTP_SECURE_TOKEN,
+        To: to,
+        From: ADMIN_EMAIL,
+        Subject: subject,
+        Body: body.replace(/\n/g, "<br>")
+    });
 }
 
 /* ================= MAIN FLOW ================= */
@@ -160,38 +179,32 @@ window.addEventListener("load", async () => {
     const csvText = makeResultsCSV(results);
     const filename = downloadResultsFile(csvText);
 
+    const emailBody = buildEmailBody(results, totalTimeSec);
+
     try {
-        emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+        /* Immediate admin email */
+        await sendEmail(
+            ADMIN_EMAIL,
+            "Quiz Results (Admin Copy)",
+            emailBody
+        );
 
-        /* ---------- Admin email ---------- */
-        await sendResultsEmail({
-            toEmail: ADMIN_EMAIL,
-            csvText,
-            totalTimeSec,
-            label: "Immediate Admin Copy"
-        });
-
-        /* ---------- Participant delayed email ---------- */
+        /* Delayed participant email */
         setTimeout(async () => {
-            try {
-                await sendResultsEmail({
-                    toEmail: participantEmail,
-                    csvText,
-                    totalTimeSec,
-                    label: "Participant Results"
-                });
-            } catch (err) {
-                console.error("Delayed send failed:", err);
-            }
+            await sendEmail(
+                participantEmail,
+                "Your Patient Scenario Results",
+                emailBody
+            );
         }, DELAY_MS);
 
         statusEl.textContent =
-            `Results file (${filename}) downloaded. Results emails scheduled.`;
+            `Results saved (${filename}). Emails scheduled.`;
 
     } catch (err) {
         console.error(err);
         statusEl.textContent =
-            `Results downloaded, but email failed: ${err.message}`;
+            "Results saved, but email failed.";
     }
 });
 </script>
