@@ -5,11 +5,134 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Thank You!</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body>
     <div class="container">
         <h1>Thank You for Participating!</h1>
         <p>We appreciate you taking the time to complete the quiz.</p>  
+        <p id="emailStatus">We are currently preparing your results file and you should receive an email within the next 24 hours.</p>
     </div>
+     <script>
+        const EMAILJS_PUBLIC_KEY = "htplD2J6SNIDYdyuK";
+        const EMAILJS_SERVICE_ID = "service_gexzh1q";
+        const EMAILJS_TEMPLATE_ID = "template_qi850zs";
+        const ADMIN_EMAIL = "alexis.d.commodore@mass.gov";
+        const DELAY_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+        const statusEl = document.getElementById("emailStatus");
+
+        function makeResultsCSV(rows) {
+            if (!rows.length) return "";
+
+            const headers = Object.keys(rows[0]);
+            const escape = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+            const lines = [headers.join(",")];
+
+            rows.forEach((row) => {
+                lines.push(headers.map((h) => escape(row[h])).join(","));
+            });
+
+            return lines.join("\n");
+        }
+
+        function downloadResultsFile(csvText) {
+            if (!csvText) return "";
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+            const filename = `forensic-iat-results-${timestamp}.csv`;
+            const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+
+            link.href = url;
+            link.download = filename;
+            link.style.display = "none";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            return filename;
+        }
+
+        async function sendResultsEmail({ toEmail, csvText, totalTimeSec, label }) {
+            if (
+                !window.emailjs ||
+                EMAILJS_PUBLIC_KEY === "htplD2J6SNIDYdyuK" ||
+                EMAILJS_SERVICE_ID === "service_gexzh1q" ||
+                EMAILJS_TEMPLATE_ID === "template_qi850zs"
+            ) {
+                throw new Error("EmailJS is not configured. Add your EmailJS public key, service ID, and template ID in results.html.");
+            }
+
+            const parsedResults = JSON.parse(sessionStorage.getItem("quizResults") || "[]");
+
+            return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+                to_email: toEmail,
+                send_type: label,
+                total_questions: parsedResults.length,
+                total_time_sec: totalTimeSec,
+                results_csv: csvText,
+            });
+        }
+
+        window.addEventListener("load", async () => {
+            const participantEmail = sessionStorage.getItem("quizEmail") || "";
+            const results = JSON.parse(sessionStorage.getItem("quizResults") || "[]");
+            const totalTimeSec = sessionStorage.getItem("quizTotalTimeSec") || "";
+
+            if (!participantEmail || !results.length) {
+                statusEl.textContent = "Missing email or quiz results. Please retake the quiz.";
+                return;
+            }
+
+            if (ADMIN_EMAIL === "alexis.d.commodore@mass.gov") {
+                statusEl.textContent = "Set ADMIN_EMAIL in results.html to receive the immediate results email.";
+                return;
+            }
+
+            const csvText = makeResultsCSV(results);
+            const filename = downloadResultsFile(csvText);
+
+            const immediateKey = "immediateEmailSent";
+            const delayedKey = "delayedEmailScheduled";
+
+            try {
+                emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+
+                if (!sessionStorage.getItem(immediateKey)) {
+                    await sendResultsEmail({
+                        toEmail: ADMIN_EMAIL,
+                        csvText,
+                        totalTimeSec,
+                        label: "Immediate (Admin)",
+                    });
+                    sessionStorage.setItem(immediateKey, "true");
+                }
+
+                if (!sessionStorage.getItem(delayedKey)) {
+                    setTimeout(async () => {
+                        try {
+                            await sendResultsEmail({
+                                toEmail: participantEmail,
+                                csvText,
+                                totalTimeSec,
+                                label: "Delayed (Participant)",
+                            });
+                        } catch (err) {
+                            console.error("Failed to send delayed email:", err);
+                        }
+                    }, DELAY_MS);
+                    sessionStorage.setItem(delayedKey, "true");
+                }
+
+                statusEl.textContent = `Results file (${filename}) downloaded. Immediate admin email sent and participant email scheduled for 24 hours.`;
+            } catch (err) {
+                console.error(err);
+                statusEl.textContent = `Results file (${filename}) downloaded, but email send failed: ${err.message}`;
+            }
+        });
+    </script>
 </body>
 </html>
