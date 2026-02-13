@@ -7,12 +7,7 @@
 
 <link rel="stylesheet" href="styles.css">
 
-<!-- EmailJS v4 per docs -->
-<script type="module">
-  import emailjs from "https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js";
-  window.emailjs = emailjs;
-</script>
-
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 
 <body>
@@ -20,63 +15,81 @@
 <div class="container">
     <h1>Thank You for Participating!</h1>
     <p>We appreciate you taking the time to complete the quiz.</p>
-    <p>Your results are being processed. Check this page for status messages.</p>
+    <p>Your results are being processed and will be emailed to you shortly.</p>
 
     <p id="emailStatus"></p>
 </div>
 
 <script>
 /* ================= CONFIG ================= */
+
 const EMAILJS_PUBLIC_KEY = "htplD2J6SNIDYdyuK";
-const EMAILJS_SERVICE_ID = "service_gexzh1q";
+const EMAILJS_SERVICE_ID = "service_dbk0h6l";
 const EMAILJS_TEMPLATE_ID = "template_qi850zs";
+
 const ADMIN_EMAIL = "alexis.d.commodore@mass.gov";
-const DELAY_MS = 24 * 60 * 60 * 1000; // 24 hours
+const DELAY_MS = 24 * 60 * 60 * 1000;
 
 /* ================= CSV EXPORT ================= */
+
 function makeResultsCSV(rows) {
     if (!rows.length) return "";
+
     const headers = Object.keys(rows[0]);
     const escape = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const lines = [ headers.join(",") ];
-    rows.forEach(r => {
-        lines.push(headers.map(h => escape(r[h])).join(","));
+
+    const lines = [headers.join(",")];
+
+    rows.forEach(row => {
+        lines.push(headers.map(h => escape(row[h])).join(","));
     });
+
     return lines.join("\n");
 }
 
 function downloadResultsFile(csvText) {
     if (!csvText) return "";
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const filename = `forensic-iat-results-${timestamp}.csv`;
+
     const blob = new Blob([csvText], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
+
     const link = document.createElement("a");
     link.href = url;
     link.download = filename;
     document.body.appendChild(link);
     link.click();
+
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+
     return filename;
 }
 
 /* ================= BIAS ANALYSIS ================= */
+
 function summarizeBias(results) {
     const counts = { none: 0, slight: 0, strong: 0 };
+
     function summarize(field) {
         const map = {};
+
         results.forEach(r => {
             if (r.bias_level === "none") return;
             const key = r[field] || "Unspecified";
             map[key] = (map[key] || 0) + 1;
         });
+
         return Object.entries(map)
-            .sort((a,b) => b[1] - a[1])
-            .map(([k,v]) => `${k} (${v})`)
+            .sort((a, b) => b[1] - a[1])
+            .map(([k, v]) => `${k} (${v})`)
             .join(", ") || "None observed";
     }
+
     results.forEach(r => counts[r.bias_level]++);
+
     return {
         none_count: counts.none,
         slight_count: counts.slight,
@@ -91,13 +104,21 @@ function summarizeBias(results) {
 
 function averageReactionTime(results) {
     if (!results.length) return 0;
-    const sum = results.reduce((a,r) => a + Number(r.reaction_time_sec || 0), 0);
+    const sum = results.reduce((a, r) => a + Number(r.reaction_time_sec || 0), 0);
     return (sum / results.length).toFixed(2);
 }
 
 /* ================= EMAIL SEND ================= */
-async function sendResultsEmail({ toEmail, csvText, totalTimeSec, label }) {
-    const parsedResults = JSON.parse(sessionStorage.getItem("quizResults") || "[]");
+
+async function sendResultsEmail({
+    toEmail,
+    csvText,
+    totalTimeSec,
+    label
+}) {
+    const parsedResults =
+        JSON.parse(sessionStorage.getItem("quizResults") || "[]");
+
     const biasSummary = summarizeBias(parsedResults);
     const avgRT = averageReactionTime(parsedResults);
 
@@ -111,29 +132,28 @@ async function sendResultsEmail({ toEmail, csvText, totalTimeSec, label }) {
             total_quiz_time: totalTimeSec,
             average_response_time: avgRT,
             results_csv: csvText,
-
-            none_count: biasSummary.none_count,
-            slight_count: biasSummary.slight_count,
-            strong_count: biasSummary.strong_count,
-            bias_by_age_summary: biasSummary.bias_by_age_summary,
-            bias_by_race_summary: biasSummary.bias_by_race_summary,
-            bias_by_gender_summary: biasSummary.bias_by_gender_summary,
-            bias_by_context_summary: biasSummary.bias_by_context_summary,
-            bias_by_assault_type_summary: biasSummary.bias_by_assault_type_summary
+            ...biasSummary
         }
     );
 }
 
 /* ================= MAIN FLOW ================= */
+
 window.addEventListener("load", async () => {
     const statusEl = document.getElementById("emailStatus");
 
-    const participantEmail = sessionStorage.getItem("quizEmail") || "";
-    const results = JSON.parse(sessionStorage.getItem("quizResults") || "[]");
-    const totalTimeSec = sessionStorage.getItem("quizTotalTimeSec") || "";
+    const participantEmail =
+        sessionStorage.getItem("quizEmail") || "";
+
+    const results =
+        JSON.parse(sessionStorage.getItem("quizResults") || "[]");
+
+    const totalTimeSec =
+        sessionStorage.getItem("quizTotalTimeSec") || "";
 
     if (!participantEmail || !results.length) {
-        statusEl.textContent = "Missing quiz data. Please retake the quiz.";
+        statusEl.textContent =
+            "Missing quiz data. Please retake the quiz.";
         return;
     }
 
@@ -141,36 +161,37 @@ window.addEventListener("load", async () => {
     const filename = downloadResultsFile(csvText);
 
     try {
-        /* Initialize EmailJS */
-        emailjs.init(EMAILJS_PUBLIC_KEY);
+        emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 
-        /* Admin email */
+        /* ---------- Admin email ---------- */
         await sendResultsEmail({
             toEmail: ADMIN_EMAIL,
             csvText,
             totalTimeSec,
-            label: "Immediate (Admin)"
+            label: "Immediate Admin Copy"
         });
 
-        /* Delayed participant email */
+        /* ---------- Participant delayed email ---------- */
         setTimeout(async () => {
             try {
                 await sendResultsEmail({
                     toEmail: participantEmail,
                     csvText,
                     totalTimeSec,
-                    label: "Delayed (Participant)"
+                    label: "Participant Results"
                 });
             } catch (err) {
-                console.error("Participant email failed:", err);
+                console.error("Delayed send failed:", err);
             }
         }, DELAY_MS);
 
-        statusEl.textContent = `Downloaded (${filename}). Emails scheduled.`;
+        statusEl.textContent =
+            `Results file (${filename}) downloaded. Results emails scheduled.`;
 
     } catch (err) {
         console.error(err);
-        statusEl.textContent = `Results downloaded, but email failed.`;
+        statusEl.textContent =
+            `Results downloaded, but email failed: ${err.message}`;
     }
 });
 </script>
