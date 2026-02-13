@@ -1,138 +1,200 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thank You!</title>
-    <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thank You!</title>
+
+<link rel="stylesheet" href="styles.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
+
 <body>
-    <div class="container">
-        <h1>Thank You for Participating!</h1>
-        <p>We appreciate you taking the time to complete the quiz.</p>  
-        <p>We are currently preparing your results file and you should receive an email within the next 24 hours.</p>
-    </div>
-     <script>
-        const EMAILJS_PUBLIC_KEY = "htplD2J6SNIDYdyuK";
-        const EMAILJS_SERVICE_ID = "service_gexzh1q";
-        const EMAILJS_TEMPLATE_ID = "template_qi850zs";
-        const ADMIN_EMAIL = "alexis.d.commodore@mass.gov";
-        const DELAY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-        const statusEl = document.getElementById("emailStatus");
+<div class="container">
+    <h1>Thank You for Participating!</h1>
+    <p>We appreciate you taking the time to complete the quiz.</p>
+    <p>Your results are being processed and will be emailed to you shortly.</p>
 
-        function makeResultsCSV(rows) {
-            if (!rows.length) return "";
+    <p id="emailStatus"></p>
+</div>
 
-            const headers = Object.keys(rows[0]);
-            const escape = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
-            const lines = [headers.join(",")];
+<script>
+/* ================= CONFIG ================= */
 
-            rows.forEach((row) => {
-                lines.push(headers.map((h) => escape(row[h])).join(","));
-            });
+const EMAILJS_PUBLIC_KEY = "htplD2J6SNIDYdyuK";
+const EMAILJS_SERVICE_ID = "service_gexzh1q";
+const EMAILJS_TEMPLATE_ID = "template_qi850zs";
 
-            return lines.join("\n");
-        }
+const ADMIN_EMAIL = "alexis.d.commodore@mass.gov";
+const DELAY_MS = 24 * 60 * 60 * 1000;
 
-        function downloadResultsFile(csvText) {
-            if (!csvText) return "";
+/* ================= CSV EXPORT ================= */
 
-            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-            const filename = `forensic-iat-results-${timestamp}.csv`;
-            const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
+function makeResultsCSV(rows) {
+    if (!rows.length) return "";
 
-            link.href = url;
-            link.download = filename;
-            link.style.display = "none";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+    const headers = Object.keys(rows[0]);
+    const escape = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
-            return filename;
-        }
+    const lines = [headers.join(",")];
 
-        async function sendResultsEmail({ toEmail, csvText, totalTimeSec, label }) {
-            if (
-                !window.emailjs ||
-                EMAILJS_PUBLIC_KEY === "htplD2J6SNIDYdyuK" ||
-                EMAILJS_SERVICE_ID === "service_gexzh1q" ||
-                EMAILJS_TEMPLATE_ID === "template_qi850zs"
-            ) {
-                throw new Error("EmailJS is not configured. Add your EmailJS public key, service ID, and template ID in results.html.");
-            }
+    rows.forEach(row => {
+        lines.push(headers.map(h => escape(row[h])).join(","));
+    });
 
-            const parsedResults = JSON.parse(sessionStorage.getItem("quizResults") || "[]");
+    return lines.join("\n");
+}
 
-            return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-                to_email: toEmail,
-                send_type: label,
-                total_questions: parsedResults.length,
-                total_time_sec: totalTimeSec,
-                results_csv: csvText,
-            });
-        }
+function downloadResultsFile(csvText) {
+    if (!csvText) return "";
 
-        window.addEventListener("load", async () => {
-            const participantEmail = sessionStorage.getItem("quizEmail") || "";
-            const results = JSON.parse(sessionStorage.getItem("quizResults") || "[]");
-            const totalTimeSec = sessionStorage.getItem("quizTotalTimeSec") || "";
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filename = `forensic-iat-results-${timestamp}.csv`;
 
-            if (!participantEmail || !results.length) {
-                statusEl.textContent = "Missing email or quiz results. Please retake the quiz.";
-                return;
-            }
+    const blob = new Blob([csvText], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
 
-            if (ADMIN_EMAIL === "alexis.d.commodore@mass.gov") {
-                statusEl.textContent = "Set ADMIN_EMAIL in results.html to receive the immediate results email.";
-                return;
-            }
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
 
-            const csvText = makeResultsCSV(results);
-            const filename = downloadResultsFile(csvText);
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 
-            const immediateKey = "immediateEmailSent";
-            const delayedKey = "delayedEmailScheduled";
+    return filename;
+}
 
-            try {
-                emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+/* ================= BIAS ANALYSIS ================= */
 
-                if (!sessionStorage.getItem(immediateKey)) {
-                    await sendResultsEmail({
-                        toEmail: ADMIN_EMAIL,
-                        csvText,
-                        totalTimeSec,
-                        label: "Immediate (Admin)",
-                    });
-                    sessionStorage.setItem(immediateKey, "true");
-                }
+function summarizeBias(results) {
+    const counts = { none: 0, slight: 0, strong: 0 };
 
-                if (!sessionStorage.getItem(delayedKey)) {
-                    setTimeout(async () => {
-                        try {
-                            await sendResultsEmail({
-                                toEmail: participantEmail,
-                                csvText,
-                                totalTimeSec,
-                                label: "Delayed (Participant)",
-                            });
-                        } catch (err) {
-                            console.error("Failed to send delayed email:", err);
-                        }
-                    }, DELAY_MS);
-                    sessionStorage.setItem(delayedKey, "true");
-                }
+    function summarize(field) {
+        const map = {};
 
-                statusEl.textContent = `Results file (${filename}) downloaded. Immediate admin email sent and participant email scheduled for 24 hours.`;
-            } catch (err) {
-                console.error(err);
-                statusEl.textContent = `Results file (${filename}) downloaded, but email send failed: ${err.message}`;
-            }
+        results.forEach(r => {
+            if (r.bias_level === "none") return;
+            const key = r[field] || "Unspecified";
+            map[key] = (map[key] || 0) + 1;
         });
-    </script>
+
+        return Object.entries(map)
+            .sort((a, b) => b[1] - a[1])
+            .map(([k, v]) => `${k} (${v})`)
+            .join(", ") || "None observed";
+    }
+
+    results.forEach(r => counts[r.bias_level]++);
+
+    return {
+        none_count: counts.none,
+        slight_count: counts.slight,
+        strong_count: counts.strong,
+        bias_by_age_summary: summarize("age"),
+        bias_by_race_summary: summarize("race"),
+        bias_by_gender_summary: summarize("gender"),
+        bias_by_context_summary: summarize("scenario_context"),
+        bias_by_assault_type_summary: summarize("assault_type")
+    };
+}
+
+function averageReactionTime(results) {
+    if (!results.length) return 0;
+    const sum = results.reduce((a, r) => a + Number(r.reaction_time_sec || 0), 0);
+    return (sum / results.length).toFixed(2);
+}
+
+/* ================= EMAIL SEND ================= */
+
+async function sendResultsEmail({
+    toEmail,
+    csvText,
+    totalTimeSec,
+    label
+}) {
+    const parsedResults =
+        JSON.parse(sessionStorage.getItem("quizResults") || "[]");
+
+    const biasSummary = summarizeBias(parsedResults);
+    const avgRT = averageReactionTime(parsedResults);
+
+    return emailjs.send(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        {
+            to_email: toEmail,
+            send_type: label,
+            total_questions: parsedResults.length,
+            total_quiz_time: totalTimeSec,
+            average_response_time: avgRT,
+            results_csv: csvText,
+            ...biasSummary
+        }
+    );
+}
+
+/* ================= MAIN FLOW ================= */
+
+window.addEventListener("load", async () => {
+    const statusEl = document.getElementById("emailStatus");
+
+    const participantEmail =
+        sessionStorage.getItem("quizEmail") || "";
+
+    const results =
+        JSON.parse(sessionStorage.getItem("quizResults") || "[]");
+
+    const totalTimeSec =
+        sessionStorage.getItem("quizTotalTimeSec") || "";
+
+    if (!participantEmail || !results.length) {
+        statusEl.textContent =
+            "Missing quiz data. Please retake the quiz.";
+        return;
+    }
+
+    const csvText = makeResultsCSV(results);
+    const filename = downloadResultsFile(csvText);
+
+    try {
+        emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+
+        /* ---------- Admin email ---------- */
+        await sendResultsEmail({
+            toEmail: ADMIN_EMAIL,
+            csvText,
+            totalTimeSec,
+            label: "Immediate Admin Copy"
+        });
+
+        /* ---------- Participant delayed email ---------- */
+        setTimeout(async () => {
+            try {
+                await sendResultsEmail({
+                    toEmail: participantEmail,
+                    csvText,
+                    totalTimeSec,
+                    label: "Participant Results"
+                });
+            } catch (err) {
+                console.error("Delayed send failed:", err);
+            }
+        }, DELAY_MS);
+
+        statusEl.textContent =
+            `Results file (${filename}) downloaded. Results emails scheduled.`;
+
+    } catch (err) {
+        console.error(err);
+        statusEl.textContent =
+            `Results downloaded, but email failed: ${err.message}`;
+    }
+});
+</script>
+
 </body>
 </html>
