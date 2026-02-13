@@ -7,8 +7,12 @@
 
 <link rel="stylesheet" href="styles.css">
 
-<!-- SMTP.js -->
-<script src="https://smtpjs.com/v3/smtp.js"></script>
+<!-- EmailJS v4 per docs -->
+<script type="module">
+  import emailjs from "https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js";
+  window.emailjs = emailjs;
+</script>
+
 </head>
 
 <body>
@@ -16,79 +20,63 @@
 <div class="container">
     <h1>Thank You for Participating!</h1>
     <p>We appreciate you taking the time to complete the quiz.</p>
-    <p>Your results are being processed and will be emailed shortly.</p>
+    <p>Your results are being processed. Check this page for status messages.</p>
 
     <p id="emailStatus"></p>
 </div>
 
 <script>
-
 /* ================= CONFIG ================= */
-
-const SMTP_SECURE_TOKEN = "gkmk wdni nkpm mgul";
+const EMAILJS_PUBLIC_KEY = "htplD2J6SNIDYdyuK";
+const EMAILJS_SERVICE_ID = "service_gexzh1q";
+const EMAILJS_TEMPLATE_ID = "template_qi850zs";
 const ADMIN_EMAIL = "alexis.d.commodore@mass.gov";
-const DELAY_MS = 24 * 60 * 60 * 1000;
+const DELAY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /* ================= CSV EXPORT ================= */
-
 function makeResultsCSV(rows) {
     if (!rows.length) return "";
-
     const headers = Object.keys(rows[0]);
     const escape = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-
-    const lines = [headers.join(",")];
-
-    rows.forEach(row => {
-        lines.push(headers.map(h => escape(row[h])).join(","));
+    const lines = [ headers.join(",") ];
+    rows.forEach(r => {
+        lines.push(headers.map(h => escape(r[h])).join(","));
     });
-
     return lines.join("\n");
 }
 
 function downloadResultsFile(csvText) {
     if (!csvText) return "";
-
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const filename = `forensic-iat-results-${timestamp}.csv`;
-
     const blob = new Blob([csvText], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
     link.href = url;
     link.download = filename;
     document.body.appendChild(link);
     link.click();
-
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-
     return filename;
 }
 
 /* ================= BIAS ANALYSIS ================= */
-
 function summarizeBias(results) {
     const counts = { none: 0, slight: 0, strong: 0 };
-
     function summarize(field) {
         const map = {};
-
         results.forEach(r => {
             if (r.bias_level === "none") return;
             const key = r[field] || "Unspecified";
             map[key] = (map[key] || 0) + 1;
         });
-
         return Object.entries(map)
-            .sort((a, b) => b[1] - a[1])
-            .map(([k, v]) => `${k} (${v})`)
+            .sort((a,b) => b[1] - a[1])
+            .map(([k,v]) => `${k} (${v})`)
             .join(", ") || "None observed";
     }
-
     results.forEach(r => counts[r.bias_level]++);
-
     return {
         none_count: counts.none,
         slight_count: counts.slight,
@@ -103,108 +91,86 @@ function summarizeBias(results) {
 
 function averageReactionTime(results) {
     if (!results.length) return 0;
-    const sum = results.reduce((a, r) => a + Number(r.reaction_time_sec || 0), 0);
+    const sum = results.reduce((a,r) => a + Number(r.reaction_time_sec || 0), 0);
     return (sum / results.length).toFixed(2);
 }
 
-/* ================= EMAIL BODY ================= */
-
-function buildEmailBody(results, totalTimeSec) {
-    const bias = summarizeBias(results);
-    const avgRT = averageReactionTime(results);
-
-    return `
-Hello,
-
-Thank you for completing the Patient Scenarios quiz.
-
-Overall Participation Summary:
-Total scenarios: ${results.length}
-Average response time: ${avgRT} seconds
-Total quiz time: ${totalTimeSec} seconds
-
-Bias Classification Overview:
-No Bias Detected: ${bias.none_count}
-Slight Bias Indicators: ${bias.slight_count}
-Strong Bias Indicators: ${bias.strong_count}
-
-Bias observed in categories:
-Age groups: ${bias.bias_by_age_summary}
-Race/Ethnicity: ${bias.bias_by_race_summary}
-Gender: ${bias.bias_by_gender_summary}
-Scenario context: ${bias.bias_by_context_summary}
-Assault type: ${bias.bias_by_assault_type_summary}
-
-These results are intended to support reflection and continued growth in equitable, trauma-informed care.
-
-Thank you again for your participation.
-
-Best regards,
-Program Team
-`;
-}
-
 /* ================= EMAIL SEND ================= */
+async function sendResultsEmail({ toEmail, csvText, totalTimeSec, label }) {
+    const parsedResults = JSON.parse(sessionStorage.getItem("quizResults") || "[]");
+    const biasSummary = summarizeBias(parsedResults);
+    const avgRT = averageReactionTime(parsedResults);
 
-async function sendEmail(to, subject, body) {
-    return Email.send({
-        SecureToken: SMTP_SECURE_TOKEN,
-        To: to,
-        From: ADMIN_EMAIL,
-        Subject: subject,
-        Body: body.replace(/\n/g, "<br>")
-    });
+    return emailjs.send(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        {
+            to_email: toEmail,
+            send_type: label,
+            total_questions: parsedResults.length,
+            total_quiz_time: totalTimeSec,
+            average_response_time: avgRT,
+            results_csv: csvText,
+
+            none_count: biasSummary.none_count,
+            slight_count: biasSummary.slight_count,
+            strong_count: biasSummary.strong_count,
+            bias_by_age_summary: biasSummary.bias_by_age_summary,
+            bias_by_race_summary: biasSummary.bias_by_race_summary,
+            bias_by_gender_summary: biasSummary.bias_by_gender_summary,
+            bias_by_context_summary: biasSummary.bias_by_context_summary,
+            bias_by_assault_type_summary: biasSummary.bias_by_assault_type_summary
+        }
+    );
 }
 
 /* ================= MAIN FLOW ================= */
-
 window.addEventListener("load", async () => {
     const statusEl = document.getElementById("emailStatus");
 
-    const participantEmail =
-        sessionStorage.getItem("quizEmail") || "";
-
-    const results =
-        JSON.parse(sessionStorage.getItem("quizResults") || "[]");
-
-    const totalTimeSec =
-        sessionStorage.getItem("quizTotalTimeSec") || "";
+    const participantEmail = sessionStorage.getItem("quizEmail") || "";
+    const results = JSON.parse(sessionStorage.getItem("quizResults") || "[]");
+    const totalTimeSec = sessionStorage.getItem("quizTotalTimeSec") || "";
 
     if (!participantEmail || !results.length) {
-        statusEl.textContent =
-            "Missing quiz data. Please retake the quiz.";
+        statusEl.textContent = "Missing quiz data. Please retake the quiz.";
         return;
     }
 
     const csvText = makeResultsCSV(results);
     const filename = downloadResultsFile(csvText);
 
-    const emailBody = buildEmailBody(results, totalTimeSec);
-
     try {
-        /* Immediate admin email */
-        await sendEmail(
-            ADMIN_EMAIL,
-            "Quiz Results (Admin Copy)",
-            emailBody
-        );
+        /* Initialize EmailJS */
+        emailjs.init(EMAILJS_PUBLIC_KEY);
+
+        /* Admin email */
+        await sendResultsEmail({
+            toEmail: ADMIN_EMAIL,
+            csvText,
+            totalTimeSec,
+            label: "Immediate (Admin)"
+        });
 
         /* Delayed participant email */
         setTimeout(async () => {
-            await sendEmail(
-                participantEmail,
-                "Your Patient Scenario Results",
-                emailBody
-            );
+            try {
+                await sendResultsEmail({
+                    toEmail: participantEmail,
+                    csvText,
+                    totalTimeSec,
+                    label: "Delayed (Participant)"
+                });
+            } catch (err) {
+                console.error("Participant email failed:", err);
+            }
         }, DELAY_MS);
 
-        statusEl.textContent =
-            `Results saved (${filename}). Emails scheduled.`;
+        statusEl.textContent = `Downloaded (${filename}). Emails scheduled.`;
 
     } catch (err) {
         console.error(err);
-        statusEl.textContent =
-            "Results saved, but email failed.";
+        statusEl.textContent = `Results downloaded, but email failed.`;
     }
 });
 </script>
